@@ -18,10 +18,11 @@ Add it in your root build.gradle at the end of repositories:
 	}
 ```
 ### Step 2. Add the dependency
-
+ Add this tow lines to your Module dependency
 ```
 dependencies {
 		implementation 'com.github.ixiDev:GDPRChecker:v0.1'
+		implementation 'com.google.android.ads.consent:consent-library:1.0.3'
 	}
 ```
 
