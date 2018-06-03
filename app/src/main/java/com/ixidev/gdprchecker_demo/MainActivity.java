@@ -13,8 +13,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         new GDPRChecker()
                 .withContext(this)
-                .withPrivacyUrl("https://sites.google.com/view/ixidev/home")
-                .withPublisherIds("pub-1278119229762512")
+                .withPrivacyUrl("https://www.example.com/privacy")
+                .withPublisherIds("pub-xxxxxxxxxxxxxxxx")
                 .withTestMode()
                 .check();
     }
