@@ -21,7 +21,7 @@ Add it in your root build.gradle at the end of repositories:
  Add this tow lines to your Module dependency
 ```
 dependencies {
-		implementation 'com.github.ixiDev:GDPRChecker:v0.1'
+		implementation 'com.github.ixiDev:GDPRChecker:v0.2'
 		implementation 'com.google.android.ads.consent:consent-library:1.0.3'
 	}
 ```
