@@ -11,6 +11,7 @@ import com.google.ads.consent.ConsentInfoUpdateListener;
 import com.google.ads.consent.ConsentInformation;
 import com.google.ads.consent.ConsentStatus;
 import com.google.ads.consent.DebugGeography;
+import com.google.gson.annotations.SerializedName;
 
 import java.net.URL;
 
@@ -25,6 +26,8 @@ public class GDPRChecker {
     private ConsentForm form;
     private String[] publisherIds;
     private static GDPRChecker instance;
+    private static Request request = Request.PERSONALIZED;
+    private boolean withAdFreeOption = false;
 
     protected GDPRChecker(Context context) {
         this.context = context;
@@ -45,21 +48,38 @@ public class GDPRChecker {
             throw new NullPointerException("Please call withContext first");
         return instance;
     }
-@RequiresPermission(Manifest.permission.INTERNET)
+
+    @RequiresPermission(Manifest.permission.INTERNET)
     private void initGDPR() {
-//        consentInformation.setDebugGeography(DebugGeography.DEBUG_GEOGRAPHY_EEA);
         if (publisherIds == null)
             throw new NullPointerException("publisherIds is null, please call withPublisherIds first");
         consentInformation.requestConsentInfoUpdate(publisherIds, new ConsentInfoUpdateListener() {
             @Override
             public void onConsentInfoUpdated(ConsentStatus consentStatus) {
-                if (consentStatus == ConsentStatus.UNKNOWN)
-                    if (consentInformation.isRequestLocationInEeaOrUnknown())
-                        setupForm();
-                    else consentInformation.setConsentStatus(consentStatus);
-                else
-                    consentInformation.setConsentStatus(consentStatus);
-                Log.i(TAG, "onConsentInfoUpdated: " + consentStatus.name());
+
+                switch (consentStatus) {
+                    case PERSONALIZED:
+                        request = Request.PERSONALIZED;
+                        Log.i(TAG, "onConsentInfoUpdated: Showing Personalized ads");
+                        break;
+                    case NON_PERSONALIZED:
+                        request = Request.NON_PERSONALIZED;
+                        Log.i(TAG, "onConsentInfoUpdated: Showing Non-Personalized ads");
+                        break;
+                    case UNKNOWN:
+                        if (consentInformation.isRequestLocationInEeaOrUnknown()) {
+                            setupForm();
+                        } else {
+                            request = Request.NON_PERSONALIZED;
+                            Log.i(TAG, "onConsentInfoUpdated:  case UNKNOWN :: GDPRChecker Request :: " + request.name());
+                        }
+
+                        break;
+                    default:
+                        request = Request.PERSONALIZED;
+                        break;
+                }
+
             }
 
             @Override
@@ -80,7 +100,7 @@ public class GDPRChecker {
         } catch (Exception e) {
             Log.e(TAG, "initGDPR: ", e);
         }
-        form = new ConsentForm.Builder(context, Url)
+        ConsentForm.Builder builder = new ConsentForm.Builder(context, Url)
                 .withListener(new ConsentFormListener() {
                     @Override
                     public void onConsentFormLoaded() {
@@ -95,8 +115,24 @@ public class GDPRChecker {
                     @Override
                     public void onConsentFormClosed(
                             ConsentStatus consentStatus, Boolean userPrefersAdFree) {
-                        Log.i(TAG, "onConsentFormClosed: " + consentStatus.name());
                         consentInformation.setConsentStatus(consentStatus);
+
+                        if (userPrefersAdFree) {
+                            Log.i(TAG, "Requesting Consent: User prefers AdFree");
+                        } else {
+                            Log.i(TAG, "Requesting Consent: Requesting consent again");
+                            switch (consentStatus) {
+                                case PERSONALIZED:
+                                    request = Request.PERSONALIZED;
+                                    break;
+                                case NON_PERSONALIZED:
+                                    request = Request.NON_PERSONALIZED;
+                                    break;
+                                case UNKNOWN:
+                                    request = Request.NON_PERSONALIZED;
+                                    break;
+                            }
+                        }
 
                     }
 
@@ -106,10 +142,11 @@ public class GDPRChecker {
                     }
                 })
                 .withPersonalizedAdsOption()
-                .withNonPersonalizedAdsOption()
-                .withAdFreeOption()
-                .build();
+                .withNonPersonalizedAdsOption();
+        if (withAdFreeOption)
+            builder.withAdFreeOption();
 
+        form = builder.build();
         form.load();
     }
 
@@ -141,5 +178,24 @@ public class GDPRChecker {
         if (instance == null)
             throw new NullPointerException("Please call withContext first");
         return instance;
+    }
+
+    public static Request getRequest() {
+        return request;
+    }
+
+    public enum Request {
+        @SerializedName("ADS_PERSONALIZED")
+        PERSONALIZED,
+        @SerializedName("ADS_NON_PERSONALIZED")
+        NON_PERSONALIZED
+    }
+
+    /**
+     * @param withAdFreeOption ; if true show " Pay for the ad-free version
+     *  withAdFreeOption is false by default
+     */
+    public void setWithAdFreeOption(boolean withAdFreeOption) {
+        this.withAdFreeOption = withAdFreeOption;
     }
 }
